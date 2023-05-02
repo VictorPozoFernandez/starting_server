@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from PIL import Image
 import io
 import requests
-from transformers import Blip2Processor, Blip2ForConditionalGeneration
+from transformers import Blip2Processor, Blip2ForConditionalGeneration,Blip2Model
 import torch
 import uvicorn
 
@@ -11,7 +11,11 @@ app = FastAPI()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
-model = Blip2ForConditionalGeneration.from_pretrained(
+'''model = Blip2ForConditionalGeneration.from_pretrained(
+    "Salesforce/blip2-opt-2.7b", torch_dtype=torch.float16
+)'''
+
+model = Blip2Model.from_pretrained(
     "Salesforce/blip2-opt-2.7b", torch_dtype=torch.float16
 )
 model.to(device)
