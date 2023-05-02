@@ -17,7 +17,7 @@ model = Blip2ForConditionalGeneration.from_pretrained(
 model.to(device)
 
 def generate_text(image: Image.Image) -> str:
-    prompt = "Question: Which object is the human holding / pointing at?. Answer:"
+    prompt = "Question: Which object is being shown? Answer:"
     inputs = processor(images = image, text=prompt, return_tensors="pt").to(device, torch.float16)
     #inputs = processor(images = image, return_tensors="pt").to(device, torch.float16)
     generated_ids = model.generate(**inputs)
