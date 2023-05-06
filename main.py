@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, File, UploadFile
 from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
 from GroundingDINO.groundingdino.util import box_ops
@@ -108,7 +109,7 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
 
     query_response = index.query(
         namespace="example-namespace",
-        top_k=3,
+        top_k=10,
         include_metadata=True,
         vector=image_emb.tolist())
 
@@ -167,10 +168,15 @@ def filter_top_scores(input_list):
     highest_score_element = max(input_list, key=lambda x: x['score'])
 
     # Calculate the threshold (20% less than the highest score)
-    threshold = highest_score_element['score'] * 0.9
+    threshold = highest_score_element['score'] * 0.90
 
+    filtered_ids = []
     # Filter elements based on the threshold and return their 'id'
-    filtered_ids = [element['metadata']["element"] for element in input_list if element['score'] >= threshold]
+    for element in input_list:
+        element_id = element['metadata']["element"]
+        if element['score'] >= threshold and element_id not in filtered_ids:
+            filtered_ids.append(element_id)
+  
 
     return filtered_ids
 
