@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, File, UploadFile
 from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
 from GroundingDINO.groundingdino.util import box_ops
@@ -166,6 +165,10 @@ def filter_top_scores(input_list):
 
     # Find the element with the highest score
     highest_score_element = max(input_list, key=lambda x: x['score'])
+
+    if highest_score_element["score"] < 0.60:
+        answer = "Element not identified. Ask to bring the element closer to the camera"
+        return answer
 
     # Calculate the threshold (20% less than the highest score)
     threshold = highest_score_element['score'] * 0.90
