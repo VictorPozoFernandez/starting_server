@@ -16,6 +16,7 @@ import supervision as sv
 import imageio
 from transformers import CLIPProcessor, CLIPModel
 import pinecone
+import random
 
 
 app = FastAPI()
@@ -40,19 +41,18 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     
     # Zero-Shot object detection (GroundingDINO)
     input_data = text_prompt
-    image = Image.open(io.BytesIO(await photo.read()))
-    image_np = np.array(image)
-    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+    image_bytes = io.BytesIO(await photo.read())
+    image_np = np.frombuffer(image_bytes.getvalue(), dtype=np.uint8)
+    image = cv2.imdecode(image_np, cv2.IMREAD_UNCHANGED)
+    
+    output_filename = "original_image1.png"
+    cv2.imwrite(output_filename, image)
 
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
-        temp_image_path = temp_file.name
-        image.save(temp_image_path)
-
-    image_source, image = load_image(temp_image_path)
+    image_source, image_dino = load_image("original_image1.png")
 
     boxes, logits, phrases = predict(
         model=model,
-        image=image,
+        image=image_dino,
         caption=input_data,
         box_threshold=BOX_TRESHOLD,
         text_threshold=TEXT_TRESHOLD
@@ -62,11 +62,10 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     output_filename = "annotated_image.jpg"
     cv2.imwrite(output_filename, annotated_frame)
     
-    os.remove(temp_image_path)
     
     # Zero-Shot object segmentation (SAM)
-    predictor.set_image(image_rgb)
-    H, W ,_ = image_rgb.shape
+    predictor.set_image(image)
+    H, W ,_ = image.shape
 
     boxes_xyxy = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
     transformed_boxes = predictor.transform.apply_boxes_torch(boxes_xyxy.to(DEVICE), image.shape[:2])
@@ -80,17 +79,20 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     detections = sv.Detections(xyxy=sv.mask_to_xyxy(masks=masks),mask=masks)
     detections = detections[detections.area == np.max(detections.area)]
 
-    segmented_image = mask_annotator.annotate(scene=image_rgb.copy(), detections=detections)
+    segmented_image = mask_annotator.annotate(scene=image.copy(), detections=detections)
     output_filename = "segmented_image.jpg"
     cv2.imwrite(output_filename, segmented_image)
     
     # Apply the mask to the image
-    segmented_image = image_rgb.copy()
-    segmented_image[~masks[1]] = 0
-    imageio.imwrite('segmented_image2.jpg', segmented_image)
+    segmented_image = image.copy()
+    alpha_channel = np.zeros((H, W), dtype=np.uint8)
+    alpha_channel[masks[1]] = 255
+    rgba_segmented_image = cv2.cvtColor(segmented_image, cv2.COLOR_RGB2RGBA)
+    rgba_segmented_image[:, :, 3] = alpha_channel
+    imageio.imwrite('segmented_image2.png', rgba_segmented_image)
     
     # Cut the image using the box coordinates
-    segmented_image= cv2.imread("segmented_image2.jpg")
+    segmented_image= cv2.imread("segmented_image2.png", cv2.IMREAD_UNCHANGED)
     cut_image = segmented_image[boxes_xyxy[1]:boxes_xyxy[3], boxes_xyxy[0]:boxes_xyxy[2]]
     imageio.imwrite('final_image.png', cut_image)
     
@@ -107,6 +109,7 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     query_response = index.query(
         namespace="example-namespace",
         top_k=3,
+        include_metadata=True,
         vector=image_emb.tolist())
 
     print(query_response.matches)
@@ -119,15 +122,16 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
 async def save_embedding(text_prompt: str, photo: UploadFile = File(...)):
     
     input_data = text_prompt
-    image = Image.open(io.BytesIO(await photo.read()))
-    image_np = np.array(image)
-    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+    image_bytes = io.BytesIO(await photo.read())
+    image_np = np.frombuffer(image_bytes.getvalue(), dtype=np.uint8)
+    image = cv2.imdecode(image_np, cv2.IMREAD_UNCHANGED)
     
-    output_filename = "original_image.png"
-    cv2.imwrite(output_filename, image_np)
+    
+    output_filename = "original_image2.png"
+    cv2.imwrite(output_filename, image)
     
     #Embbeding image (CLIP)
-    original_image= cv2.imread("original_image.png")
+    original_image= cv2.imread("original_image2.png")
     inputs = processor(images=original_image, return_tensors="pt", padding=True).to(DEVICE)
     image_emb = model_clip.get_image_features(**inputs)
     image_emb = image_emb.squeeze(0).cpu().detach().numpy()
@@ -140,9 +144,15 @@ async def save_embedding(text_prompt: str, photo: UploadFile = File(...)):
         pinecone.create_index(index_name, dimension = 768, metric = "cosine")
 
     index = pinecone.Index(index_name)
+    
+    while True:
+        vector_id = random.randint(1, 999999)
+        fetch_response = index.fetch(ids=[str(vector_id)], namespace="example-namespace")
+        if fetch_response["vectors"] == {}:
+            break
 
     upsert_response = index.upsert(
-        vectors=[(input_data, image_emb.tolist())],
+        vectors=[(str(vector_id), image_emb.tolist(), {"element": input_data} )],
         namespace="example-namespace")
 
     print(index.describe_index_stats())
@@ -160,7 +170,7 @@ def filter_top_scores(input_list):
     threshold = highest_score_element['score'] * 0.9
 
     # Filter elements based on the threshold and return their 'id'
-    filtered_ids = [element['id'] for element in input_list if element['score'] >= threshold]
+    filtered_ids = [element['metadata']["element"] for element in input_list if element['score'] >= threshold]
 
     return filtered_ids
 
