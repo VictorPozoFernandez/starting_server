@@ -115,6 +115,40 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     return filtered_ids
 
 
+@app.post("/save_embedding")
+async def save_embedding(text_prompt: str, photo: UploadFile = File(...)):
+    
+    input_data = text_prompt
+    image = Image.open(io.BytesIO(await photo.read()))
+    image_np = np.array(image)
+    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+    
+    output_filename = "original_image.png"
+    cv2.imwrite(output_filename, image_np)
+    
+    #Embbeding image (CLIP)
+    original_image= cv2.imread("original_image.png")
+    inputs = processor(images=original_image, return_tensors="pt", padding=True).to(DEVICE)
+    image_emb = model_clip.get_image_features(**inputs)
+    image_emb = image_emb.squeeze(0).cpu().detach().numpy()
+    
+    #Saving embedding in Pinecone 
+    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
+    index_name = "text-embeddings1"
+    
+    if index_name not in pinecone.list_indexes():
+        pinecone.create_index(index_name, dimension = 768, metric = "cosine")
+
+    index = pinecone.Index(index_name)
+
+    upsert_response = index.upsert(
+        vectors=[(input_data, image_emb.tolist())],
+        namespace="example-namespace")
+
+    print(index.describe_index_stats())
+
+    
+    
 def filter_top_scores(input_list):
     if not input_list:
         return []
@@ -123,7 +157,7 @@ def filter_top_scores(input_list):
     highest_score_element = max(input_list, key=lambda x: x['score'])
 
     # Calculate the threshold (20% less than the highest score)
-    threshold = highest_score_element['score'] * 0.8
+    threshold = highest_score_element['score'] * 0.9
 
     # Filter elements based on the threshold and return their 'id'
     filtered_ids = [element['id'] for element in input_list if element['score'] >= threshold]
