@@ -166,12 +166,12 @@ def filter_top_scores(input_list):
     # Find the element with the highest score
     highest_score_element = max(input_list, key=lambda x: x['score'])
 
-    if highest_score_element["score"] < 0.60:
-        answer = "Element not identified. Ask to bring the element closer to the camera"
+    if highest_score_element["score"] < 0.5:
+        answer = "Element not identified"
         return answer
 
     # Calculate the threshold (20% less than the highest score)
-    threshold = highest_score_element['score'] * 0.90
+    threshold = highest_score_element['score'] * 0.95
 
     filtered_ids = []
     # Filter elements based on the threshold and return their 'id'
