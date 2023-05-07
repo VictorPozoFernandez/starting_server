@@ -174,15 +174,19 @@ def filter_top_scores(input_list):
     threshold = highest_score_element['score'] * 0.95
 
     filtered_ids = []
+    filtered_elements = []
     # Filter elements based on the threshold and return their 'id'
     for element in input_list:
-        element_id = element['metadata']["element"]
+        element_id = element['metadata']["ProductID"]
+        element_name = element['metadata']["element"]
         if element['score'] >= threshold and element_id not in filtered_ids:
+            filtered_elements.append((element_id, element_name))
             filtered_ids.append(element_id)
   
 
-    return filtered_ids
+    return filtered_elements
 
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
