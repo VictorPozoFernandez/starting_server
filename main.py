@@ -119,9 +119,10 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
 
 
 @app.post("/save_embedding")
-async def save_embedding(text_prompt: str, photo: UploadFile = File(...)):
+async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile = File(...)):
     
     input_data = text_prompt
+    input_data_2 = text_prompt_2
     image_bytes = io.BytesIO(await photo.read())
     image_np = np.frombuffer(image_bytes.getvalue(), dtype=np.uint8)
     image = cv2.imdecode(image_np, cv2.IMREAD_UNCHANGED)
@@ -152,10 +153,11 @@ async def save_embedding(text_prompt: str, photo: UploadFile = File(...)):
             break
 
     upsert_response = index.upsert(
-        vectors=[(str(vector_id), image_emb.tolist(), {"element": input_data} )],
+        vectors=[(str(vector_id), image_emb.tolist(), {"ProductID": input_data, "element": input_data_2} )],
         namespace="example-namespace")
 
     print(index.describe_index_stats())
+
 
     
     
