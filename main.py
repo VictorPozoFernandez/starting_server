@@ -95,7 +95,6 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     segmented_image= cv2.imread("segmented_image2.png", cv2.IMREAD_UNCHANGED)
     cut_image = segmented_image[boxes_xyxy[1]:boxes_xyxy[3], boxes_xyxy[0]:boxes_xyxy[2]]
     current_height, current_width = cut_image.shape[:2]
-    print(current_height*current_width)
     
     # Calculate the desired size
     if current_height*current_width < 15000:
