@@ -94,7 +94,21 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     # Cut the image using the box coordinates
     segmented_image= cv2.imread("segmented_image2.png", cv2.IMREAD_UNCHANGED)
     cut_image = segmented_image[boxes_xyxy[1]:boxes_xyxy[3], boxes_xyxy[0]:boxes_xyxy[2]]
-    imageio.imwrite('final_image.png', cut_image)
+    current_height, current_width = cut_image.shape[:2]
+    print(current_height*current_width)
+    
+    # Calculate the desired size
+    if current_height*current_width < 15000:
+        desired_size = (int(3.5*current_width), int(3.5*current_height))
+    elif current_height*current_width < 25000:
+        desired_size = (int(2.5*current_width), int(2.5*current_height))
+    elif current_height*current_width < 35000:
+        desired_size = (int(1.5*current_width), int(1.5*current_height))
+    elif current_height*current_width < 45000:
+        desired_size = (int(1.25*current_width), int(1.25*current_height))
+
+    resized_image = cv2.resize(cut_image, desired_size)
+    imageio.imwrite('final_image.png', resized_image)
     
     #Embbeding image (CLIP)
     final_image= cv2.imread("final_image.png")
