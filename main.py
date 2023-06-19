@@ -113,6 +113,9 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     resized_image = cv2.resize(cut_image, desired_size)
     imageio.imwrite('final_image.png', resized_image)
     
+    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
+    index = pinecone.Index("text-embeddings1")
+    
     # Loop over the angles
     for angle in range(0, 360, 25):
     
@@ -127,9 +130,6 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
         image_emb = image_emb.squeeze(0).cpu().detach().numpy()
 
         #Querying Pinecone (the response varies depending on the searched namespace)
-        pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
-        index = pinecone.Index("text-embeddings1")
-
         query_response = index.query(
             namespace="example-namespace",
             top_k=10,
