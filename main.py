@@ -168,13 +168,13 @@ async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile 
     
     #Saving embedding in Pinecone 
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
-    index_name = "text-embeddings1"
-    
+    index_name = "text-embeddings1"    
     if index_name not in pinecone.list_indexes():
         pinecone.create_index(index_name, dimension = 768, metric = "cosine")
+        flag1=True
 
     index = pinecone.Index(index_name)
-    
+
     while True:
         vector_id = random.randint(1, 999999)
         fetch_response = index.fetch(ids=[str(vector_id)], namespace="example-namespace")
@@ -185,7 +185,7 @@ async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile 
         vectors=[(str(vector_id), image_emb.tolist(), {"ProductID": input_data, "element": input_data_2} )],
         namespace="example-namespace")
 
-    print(index.describe_index_stats())
+    return "Product_ID: " + str(input_data) + " Model: " + str(input_data_2)
 
 
     
