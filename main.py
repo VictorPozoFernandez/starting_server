@@ -18,6 +18,8 @@ from transformers import CLIPProcessor, CLIPModel
 import pinecone
 import random
 
+pinecone_api_key = os.environ.get("PINECONE_API_KEY")
+pinecone_environment = os.environ.get("PINECONE_ENVIRONMENT")
 
 app = FastAPI()
 
@@ -113,7 +115,7 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     resized_image = cv2.resize(cut_image, desired_size)
     imageio.imwrite('final_image.png', resized_image)
     
-    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
+    pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
     index = pinecone.Index("text-embeddings1")
     
     # Loop over the angles
@@ -165,7 +167,7 @@ async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile 
     image_emb = image_emb.squeeze(0).cpu().detach().numpy()
     
     #Saving embedding in Pinecone 
-    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
+    pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
     index_name = "text-embeddings1"
     
     if index_name not in pinecone.list_indexes():
