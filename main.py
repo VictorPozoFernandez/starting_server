@@ -18,8 +18,6 @@ from transformers import CLIPProcessor, CLIPModel
 import pinecone
 import random
 
-pinecone_api_key = os.environ.get("PINECONE_API_KEY")
-pinecone_environment = os.environ.get("PINECONE_ENVIRONMENT")
 
 app = FastAPI()
 
@@ -37,11 +35,7 @@ predictor = SamPredictor(sam)
 # Load CLIP model
 model_clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(DEVICE)
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to our page!"}
-
+    
 @app.post("/annotate")
 async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     
@@ -119,7 +113,7 @@ async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     resized_image = cv2.resize(cut_image, desired_size)
     imageio.imwrite('final_image.png', resized_image)
     
-    pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
+    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
     index = pinecone.Index("text-embeddings1")
     
     # Loop over the angles
@@ -171,14 +165,14 @@ async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile 
     image_emb = image_emb.squeeze(0).cpu().detach().numpy()
     
     #Saving embedding in Pinecone 
-    pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
-    index_name = "text-embeddings1"    
+    pinecone.init(api_key="04d65f27-278f-40f0-9cfb-c907b84115a7", environment="us-east4-gcp")
+    index_name = "text-embeddings1"
+    
     if index_name not in pinecone.list_indexes():
         pinecone.create_index(index_name, dimension = 768, metric = "cosine")
-        flag1=True
 
     index = pinecone.Index(index_name)
-
+    
     while True:
         vector_id = random.randint(1, 999999)
         fetch_response = index.fetch(ids=[str(vector_id)], namespace="example-namespace")
@@ -189,7 +183,7 @@ async def save_embedding(text_prompt: str,text_prompt_2: str, photo: UploadFile 
         vectors=[(str(vector_id), image_emb.tolist(), {"ProductID": input_data, "element": input_data_2} )],
         namespace="example-namespace")
 
-    return "Product_ID: " + str(input_data) + " Model: " + str(input_data_2)
+    print(index.describe_index_stats())
 
 
     
