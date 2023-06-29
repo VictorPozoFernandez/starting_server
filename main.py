@@ -37,7 +37,11 @@ predictor = SamPredictor(sam)
 # Load CLIP model
 model_clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(DEVICE)
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
-    
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to our page!"}
+
 @app.post("/annotate")
 async def annotate_image(text_prompt: str, photo: UploadFile = File(...)):
     
